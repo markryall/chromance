@@ -3,6 +3,7 @@ name = "chromance"
 version = "0.1.0"
 description = "Named Chrome profiles that scripts can drive over DevTools, never your everyday one"
 requires-python = ">=3.11"
+license = "MIT"
 dependencies = ["playwright"]
 
 [project.scripts]
