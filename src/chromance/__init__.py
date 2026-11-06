@@ -9,8 +9,11 @@ the launching script holds, so nothing else on the machine can reach the profile
 closes when the script is done. start() opens a profile as plain Chrome, with no DevTools at all,
 for logging in and installing extensions by hand. Only start(port=True) opens a DevTools port,
 which any local program could use, so it quits itself after a time limit.
+
+connect() with no name drives a throwaway profile that is deleted when the block ends, and
+destroy() deletes a named one, logins and all.
 """
-import contextlib, json, os, pathlib, re, signal, subprocess, sys, time, urllib.request
+import contextlib, json, os, pathlib, re, shutil, signal, subprocess, sys, tempfile, time, urllib.request
 
 CHROME = os.environ.get('CHROMANCE_CHROME', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 HOME = pathlib.Path(os.environ.get('CHROMANCE_HOME', '~/.local/share/chromance')).expanduser()
@@ -94,21 +97,35 @@ def start(name, url=None, port=False, ttl=PORT_TTL, wait=30):
 
 
 @contextlib.contextmanager
-def connect(name, headless=False):
+def connect(name=None, headless=False):
     """Yield a Playwright BrowserContext on the profile, with its logins, extensions and cookies.
 
     Launches Chrome over a private DevTools pipe and quits it when the block ends. If the profile is
     already running with a port (start(port=True)) it attaches to that instead and leaves it running.
-    A profile open as plain Chrome can't be driven: quit it first."""
-    from playwright.sync_api import sync_playwright
+    A profile open as plain Chrome can't be driven: quit it first.
+    With no name, the profile is a fresh throwaway one, deleted when the block ends."""
+    if name is None:
+        with tempfile.TemporaryDirectory(prefix='chromance-', ignore_cleanup_errors=True) as d:
+            with _launch(pathlib.Path(d), headless) as ctx:
+                yield ctx
+        return
     d = profile_dir(name)
     if running(name) and not endpoint(name):
         raise RuntimeError(f'{name} is open in Chrome without DevTools; quit it (chromance stop {name}) so a script can launch it')
-    with sync_playwright() as p:
-        if found := endpoint(name):
+    if found := endpoint(name):
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
             yield p.chromium.connect_over_cdp(found).contexts[0]
-            return
-        d.mkdir(parents=True, exist_ok=True)
+        return
+    d.mkdir(parents=True, exist_ok=True)
+    with _launch(d, headless) as ctx:
+        yield ctx
+
+
+@contextlib.contextmanager
+def _launch(d, headless):
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
         ctx = p.chromium.launch_persistent_context(d, channel='chrome', headless=headless, no_viewport=True,
                                                    args=CHROME_ARGS, ignore_default_args=KEEP_CHROME_NORMAL)
         try:
@@ -134,3 +151,14 @@ def stop(name, wait=15):
         if not running(name): return True
         time.sleep(0.25)
     raise RuntimeError(f'{name}: Chrome (pid {pid}) still running {wait}s after being asked to quit')
+
+
+def destroy(name):
+    """Quit the profile if it's open and delete its folder, logins, extensions and all. False if there was none."""
+    d = profile_dir(name)
+    if d.parent != HOME.resolve():
+        raise ValueError(f'{HOME / name} leads to {d}, outside {HOME}; delete it yourself if you mean it')
+    if not d.is_dir(): return False
+    stop(name)
+    shutil.rmtree(d)
+    return True

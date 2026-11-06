@@ -38,6 +38,7 @@ chromance stop NAME                    quit it
 chromance cookie NAME DOMAIN COOKIE    print one cookie's value, e.g. for curl
 chromance cookie NAME DOMAIN           all of a domain's cookies as JSON
 chromance path NAME                    the profile's folder
+chromance destroy NAME [--yes]         quit it and delete it, logins and all (asks first)
 ```
 
 `cookie` launches the profile headless for a moment (or uses its port if it has one), so quit a
@@ -56,6 +57,9 @@ with chromance.connect('gigs') as ctx:      # launches Chrome; it quits when the
 session = chromance.cookies('airnet', 'airnet.org.au', 'PHPSESSID')[0]['value']
 ```
 
+`connect()` with no name drives a fresh throwaway profile in the system temp folder, deleted when
+the block ends: no logins, extensions or cookies carried in or left behind.
+
 `connect(name, headless=True)` runs without a window, but then you can't step in when a site asks
 you to log in or solve a captcha.
 
@@ -64,5 +68,8 @@ you to log in or solve a captcha.
 ```
 uv tool install -e ~/code/github/markryall/chromance
 ```
+
+This puts `chromance` in `~/.local/bin` (`uv tool dir --bin`), linked to a venv under
+`~/.local/share/uv/tools/chromance`. `-e` means edits to this repo apply without reinstalling.
 
 Another project can depend on it with `uv add --editable ../chromance`, or use the CLI.
