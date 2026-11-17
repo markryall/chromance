@@ -65,11 +65,34 @@ you to log in or solve a captcha.
 
 ## Install
 
+You need Python 3.11+ and Google Chrome. chromance drives your installed Chrome, so there's no
+`playwright install` step.
+
+To use the command, install it straight from GitHub with [pipx](https://pipx.pypa.io/)
+(`brew install pipx` on a Mac). You don't need to clone anything:
+
 ```
-uv tool install -e ~/code/github/markryall/chromance
+pipx install git+https://github.com/markryall/chromance
 ```
 
-This puts `chromance` in `~/.local/bin` (`uv tool dir --bin`), linked to a venv under
-`~/.local/share/uv/tools/chromance`. `-e` means edits to this repo apply without reinstalling.
+pipx gives chromance its own venv and puts the `chromance` command in `~/.local/bin`. If your
+shell can't find it, run `pipx ensurepath` and open a new terminal. To upgrade, run
+`pipx upgrade chromance`. If you use uv, `uv tool install git+https://...` does the same.
 
-Another project can depend on it with `uv add --editable ../chromance`, or use the CLI.
+To work on chromance itself, clone it and install it editable, so your changes apply without a
+reinstall:
+
+```
+git clone https://github.com/markryall/chromance
+cd chromance
+pipx install -e .
+```
+
+Run `pipx install -e --force .` again only after changing dependencies or `[project.scripts]`
+in `pyproject.toml`.
+
+To use it as a library, install it into the project that imports it:
+
+```
+pip install git+https://github.com/markryall/chromance
+```
